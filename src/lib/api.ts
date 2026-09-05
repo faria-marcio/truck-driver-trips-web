@@ -1,37 +1,48 @@
-import axios from 'axios';
-import { getSession } from 'next-auth/react';
-import type { ApiResponse } from '@/types';
+import axios, { AxiosError } from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
 
-const api = axios.create({
+export const api = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Intercept requests to add auth token
-api.interceptors.request.use(async (config) => {
-  const session = await getSession();
-  if (session?.accessToken) {
-    config.headers.Authorization = `Bearer ${session.accessToken}`;
+export function getAuthHeaders(accessToken?: string): Record<string, string> {
+  if (!accessToken) {
+    return {};
   }
-  return config;
-});
 
-// Error handling
+  return {
+    Authorization: `******
+  };
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const axiosError = error as AxiosError<{ message?: string; error?: string }>;
+    return (
+      axiosError.response?.data?.message ??
+      axiosError.response?.data?.error ??
+      fallback
+    );
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized - redirect to login
-      if (typeof window !== 'undefined') {
-        window.location.href = '/auth/login';
-      }
+    if (typeof window !== 'undefined' && axios.isAxiosError(error) && error.response?.status === 401) {
+      window.location.assign('/auth/login');
     }
+
     return Promise.reject(error);
   }
 );
-
-export { api };

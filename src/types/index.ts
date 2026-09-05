@@ -1,8 +1,10 @@
+export type UserRole = 'driver' | 'admin';
+
 export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'driver' | 'admin';
+  role: UserRole;
 }
 
 export interface Trip {

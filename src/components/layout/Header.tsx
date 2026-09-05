@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession, signOut } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -8,29 +8,28 @@ export function Header() {
   const { data: session } = useSession();
   const router = useRouter();
 
-  const handleLogout = async () => {
-    await signOut({ redirect: false });
-    router.push('/auth/login');
+  const handleLogout = () => {
+    router.push('/auth/logout');
   };
 
   return (
     <header className="bg-white shadow">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-        <Link href="/" className="text-xl font-bold text-blue-600">
+      <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+        <Link href="/dashboard" className="text-xl font-bold text-blue-600">
           Truck Driver Trips
         </Link>
-        
-        {session && (
+
+        {session ? (
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">{session.user?.email}</span>
             <button
               onClick={handleLogout}
-              className="px-3 py-2 bg-red-600 text-white rounded-md text-sm font-medium hover:bg-red-700"
+              className="rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700"
             >
               Logout
             </button>
           </div>
-        )}
+        ) : null}
       </nav>
     </header>
   );
