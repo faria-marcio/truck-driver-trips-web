@@ -39,7 +39,15 @@ export function getApiErrorMessage(error: unknown, fallback: string): string {
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (typeof window !== 'undefined' && axios.isAxiosError(error) && error.response?.status === 401) {
+    const requestUrl = axios.isAxiosError(error) ? error.config?.url ?? '' : '';
+    const isAuthEndpoint = requestUrl.includes('/api/auth/');
+
+    if (
+      typeof window !== 'undefined' &&
+      axios.isAxiosError(error) &&
+      error.response?.status === 401 &&
+      !isAuthEndpoint
+    ) {
       window.location.assign('/auth/login');
     }
 

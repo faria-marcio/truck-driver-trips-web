@@ -30,7 +30,13 @@ export function TripForm({ isSubmitting, onSubmit }: TripFormProps) {
   const [values, setValues] = useState<FormValues>(initialValues);
   const [error, setError] = useState<string | null>(null);
 
-  const maxDate = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const maxDate = useMemo(() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }, []);
 
   const updateField = (name: keyof FormValues, value: string) => {
     setValues((current) => ({ ...current, [name]: value }));
