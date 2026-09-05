@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { createTrip, listTrips } from '@/lib/trips';
 import type { CreateTripInput, Trip } from '@/types';
@@ -15,12 +15,17 @@ function sortTripsByDateDesc(trips: Trip[]): Trip[] {
   });
 }
 
-export function DashboardClient() {
+interface DashboardClientProps {
+  initialTrips: Trip[];
+  initialError: string | null;
+}
+
+export function DashboardClient({ initialTrips, initialError }: DashboardClientProps) {
   const { data: session } = useSession();
-  const [trips, setTrips] = useState<Trip[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [trips, setTrips] = useState<Trip[]>(sortTripsByDateDesc(initialTrips));
+  const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
 
   const accessToken = session?.accessToken;
 
@@ -43,10 +48,6 @@ export function DashboardClient() {
       setIsLoading(false);
     }
   }, [accessToken]);
-
-  useEffect(() => {
-    void loadTrips();
-  }, [loadTrips]);
 
   const handleCreateTrip = async (input: CreateTripInput): Promise<boolean> => {
     if (!accessToken) {

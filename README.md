@@ -4,7 +4,7 @@ Mobile-first Next.js App Router frontend for truck drivers to authenticate and l
 
 ## Stack
 
-- Next.js 14 (App Router)
+- Next.js 16 (App Router)
 - React 18 + TypeScript
 - NextAuth (credentials provider)
 - Axios
