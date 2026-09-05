@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 interface AuthErrorPageProps {
   searchParams: {
     error?: string;
@@ -18,9 +20,9 @@ export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
       <section className="w-full max-w-md rounded-lg border border-red-200 bg-white p-6 shadow-sm">
         <h1 className="mb-2 text-xl font-semibold text-red-700">Sign-in failed</h1>
         <p className="mb-4 text-sm text-gray-700">{message}</p>
-        <a href="/auth/login" className="text-sm font-semibold text-blue-600 hover:underline">
+        <Link href="/auth/login" className="text-sm font-semibold text-blue-600 hover:underline">
           Back to login
-        </a>
+        </Link>
       </section>
     </main>
   );

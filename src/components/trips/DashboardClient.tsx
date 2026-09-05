@@ -7,6 +7,14 @@ import type { CreateTripInput, Trip } from '@/types';
 import { TripForm } from '@/components/trips/TripForm';
 import { TripList } from '@/components/trips/TripList';
 
+function sortTripsByDateDesc(trips: Trip[]): Trip[] {
+  return [...trips].sort((first, second) => {
+    const firstDateTime = new Date(`${first.date}T${first.startTime}`).getTime();
+    const secondDateTime = new Date(`${second.date}T${second.startTime}`).getTime();
+    return secondDateTime - firstDateTime;
+  });
+}
+
 export function DashboardClient() {
   const { data: session } = useSession();
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -27,7 +35,7 @@ export function DashboardClient() {
       setError(null);
       setIsLoading(true);
       const loadedTrips = await listTrips(accessToken);
-      setTrips(loadedTrips);
+      setTrips(sortTripsByDateDesc(loadedTrips));
     } catch (loadError) {
       const message = loadError instanceof Error ? loadError.message : 'Failed to load trips';
       setError(message);
@@ -40,20 +48,22 @@ export function DashboardClient() {
     void loadTrips();
   }, [loadTrips]);
 
-  const handleCreateTrip = async (input: CreateTripInput) => {
+  const handleCreateTrip = async (input: CreateTripInput): Promise<boolean> => {
     if (!accessToken) {
       setError('Session expired. Please log in again.');
-      return;
+      return false;
     }
 
     try {
       setIsSubmitting(true);
       setError(null);
-      const newTrip = await createTrip(accessToken, input);
-      setTrips((current) => [newTrip, ...current]);
+      await createTrip(accessToken, input);
+      await loadTrips();
+      return true;
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'Failed to create trip';
       setError(message);
+      return false;
     } finally {
       setIsSubmitting(false);
     }

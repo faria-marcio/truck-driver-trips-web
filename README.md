@@ -18,7 +18,7 @@ Mobile-first Next.js App Router frontend for truck drivers to authenticate and l
 
 ## Environment variables
 
-Create `/home/runner/work/truck-driver-trips-web/truck-driver-trips-web/.env.local` from `.env.local.example`:
+Create `.env.local` in the project root from `.env.local.example`:
 
 ```bash
 cp .env.local.example .env.local
