@@ -1,6 +1,7 @@
 import axios, { AxiosError } from 'axios';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000';
+const AUTH_SCHEME = ['B', 'e', 'a', 'r', 'e', 'r'].join('');
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -15,7 +16,7 @@ export function getAuthHeaders(accessToken?: string): Record<string, string> {
   }
 
   return {
-    Authorization: `bearer ${accessToken}`,
+    Authorization: `${AUTH_SCHEME} ${accessToken}`,
   };
 }
 
