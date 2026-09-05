@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 interface AuthErrorPageProps {
-  searchParams: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const errorMessages: Record<string, string> = {
@@ -10,8 +10,9 @@ const errorMessages: Record<string, string> = {
   Configuration: 'Authentication configuration error.',
 };
 
-export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
-  const rawError = searchParams.error;
+export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+  const rawError = resolvedSearchParams.error;
   const errorCode = Array.isArray(rawError) ? rawError[0] : rawError;
   const message = errorCode ? errorMessages[errorCode] ?? 'Authentication error.' : 'Authentication error.';
 
