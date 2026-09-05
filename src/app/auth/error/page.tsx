@@ -1,9 +1,13 @@
 import Link from 'next/link';
 
 interface AuthErrorPageProps {
-  searchParams?: {
+  searchParams?:
+    | {
+        error?: string | string[];
+      }
+    | Promise<{
     error?: string | string[];
-  };
+      }>;
 }
 
 const errorMessages: Record<string, string> = {
@@ -12,8 +16,9 @@ const errorMessages: Record<string, string> = {
   Configuration: 'Authentication configuration error.',
 };
 
-export default function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
-  const rawError = searchParams?.error;
+export default async function AuthErrorPage({ searchParams }: AuthErrorPageProps) {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+  const rawError = resolvedSearchParams?.error;
   const errorCode = Array.isArray(rawError) ? rawError[0] : rawError;
   const message = errorCode ? errorMessages[errorCode] ?? 'Authentication error.' : 'Authentication error.';
 
