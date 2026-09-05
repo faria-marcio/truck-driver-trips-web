@@ -5,7 +5,7 @@ import type { CreateTripInput } from '@/types';
 
 interface TripFormProps {
   isSubmitting: boolean;
-  onSubmit: (input: CreateTripInput) => Promise<void>;
+  onSubmit: (input: CreateTripInput) => Promise<boolean>;
 }
 
 interface FormValues {
@@ -77,8 +77,10 @@ export function TripForm({ isSubmitting, onSubmit }: TripFormProps) {
       return;
     }
 
-    await onSubmit(payload);
-    setValues(initialValues);
+    const success = await onSubmit(payload);
+    if (success) {
+      setValues(initialValues);
+    }
   };
 
   return (
