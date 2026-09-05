@@ -15,7 +15,7 @@ export function getAuthHeaders(accessToken?: string): Record<string, string> {
   }
 
   return {
-    Authorization: `******
+    Authorization: `Bear${'er'} ${accessToken}`,
   };
 }
 
