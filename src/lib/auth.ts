@@ -1,7 +1,19 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { api } from '@/lib/api';
-import type { AuthResponse } from '@/types';
+import { api, getApiErrorMessage } from '@/lib/api';
+import type { ApiResponse, AuthResponse } from '@/types';
+
+function extractAuthPayload(data: AuthResponse | ApiResponse<AuthResponse>): AuthResponse {
+  if ('token' in data && 'user' in data) {
+    return data;
+  }
+
+  if (data.data) {
+    return data.data;
+  }
+
+  throw new Error(data.error ?? data.message ?? 'Authentication failed');
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -17,12 +29,12 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          const response = await api.post<AuthResponse>('/api/auth/login', {
+          const response = await api.post<AuthResponse | ApiResponse<AuthResponse>>('/api/auth/login', {
             email: credentials.email,
             password: credentials.password,
           });
 
-          const { token, user } = response.data;
+          const { token, user } = extractAuthPayload(response.data);
 
           return {
             id: user.id,
@@ -31,8 +43,8 @@ export const authOptions: NextAuthOptions = {
             role: user.role,
             accessToken: token,
           };
-        } catch (error: any) {
-          throw new Error(error.response?.data?.error || 'Authentication failed');
+        } catch (error: unknown) {
+          throw new Error(getApiErrorMessage(error, 'Authentication failed'));
         }
       },
     }),
@@ -40,18 +52,20 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.accessToken = user.accessToken;
         token.id = user.id;
         token.role = user.role;
+        token.accessToken = user.accessToken;
       }
+
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as string;
-        session.accessToken = token.accessToken as string;
+      if (session.user && token.id && token.role && token.accessToken) {
+        session.user.id = token.id;
+        session.user.role = token.role;
+        session.accessToken = token.accessToken;
       }
+
       return session;
     },
   },
@@ -61,7 +75,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 30 * 24 * 60 * 60,
   },
   secret: process.env.NEXTAUTH_SECRET,
 };
