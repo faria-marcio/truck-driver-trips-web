@@ -40,10 +40,10 @@ This frontend expects these authenticated/unauthenticated endpoints:
     - `{ "token": string, "user": { "id": string, "email": string, "name": string, "role": "driver" | "admin" } }`
     - or wrapped in `{ "success": true, "data": { ...same payload } }`
 - `GET /api/trips`
-  - Requires `Authorization: ******
+  - Requires an `Authorization` header using the bearer scheme with the access token returned by login.
   - Expected response: `Trip[]` or `{ "success": true, "data": Trip[] }`
 - `POST /api/trips`
-  - Requires `Authorization: ******
+  - Requires an `Authorization` header using the bearer scheme with the access token returned by login.
   - Request body: `{ date, startTime, endTime, distance, pickupLocation, dropoffLocation }`
   - Expected response: `Trip` or `{ "success": true, "data": Trip }`
 
