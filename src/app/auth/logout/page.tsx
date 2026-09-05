@@ -1,12 +1,17 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useCallback } from 'react';
 import { signOut } from 'next-auth/react';
 
 export default function LogoutPage() {
-  useEffect(() => {
+  const runSignOut = useCallback(() => {
     void signOut({ callbackUrl: '/auth/login' });
   }, []);
+
+  useEffect(() => {
+    runSignOut();
+  }, [runSignOut]);
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
