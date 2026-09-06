@@ -26,9 +26,12 @@ cp .env.local.example .env.local
 
 Required values:
 
-- `NEXT_PUBLIC_API_URL` - Base URL for the .NET API (example: `http://localhost:5000`)
+- `NEXT_PUBLIC_API_URL` - Public base URL for the .NET API, including browser requests (example: `http://localhost:5000`). Aspire injects this value when running the frontend.
+- `API_URL` - Optional server-only fallback when `NEXT_PUBLIC_API_URL` is unavailable (example: `http://localhost:5000`)
 - `NEXTAUTH_URL` - Frontend URL (example: `http://localhost:3000`)
 - `NEXTAUTH_SECRET` - Random long secret used by NextAuth JWT encryption/signing
+
+The API client removes trailing slashes from the configured base URL before making requests.
 
 ## Expected .NET API endpoints
 
@@ -44,7 +47,7 @@ This frontend expects these authenticated/unauthenticated endpoints:
   - Expected response: `Trip[]` or `{ "success": true, "data": Trip[] }`
 - `POST /api/trips`
   - Requires an `Authorization` header using the bearer scheme with the access token returned by login.
-  - Request body: `{ date, startTime, endTime, distance, pickupLocation, dropoffLocation }`
+  - Request body: `{ date, startTime, endTime, distanceKm, pickupLocation, dropoffLocation }`
   - Expected response: `Trip` or `{ "success": true, "data": Trip }`
 
 ## Development
