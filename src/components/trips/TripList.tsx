@@ -43,7 +43,7 @@ export function TripList({ trips, isLoading, error }: TripListProps) {
           <li key={trip.id} className="rounded-md border border-gray-200 p-3">
             <p className="text-sm font-semibold text-gray-900">{formatDate(trip.date)}</p>
             <p className="mt-1 text-sm text-gray-700">
-              {trip.startTime} - {trip.endTime} • {trip.distance} km
+              {trip.startTime} - {trip.endTime} • {trip.distanceKm} km
             </p>
             <p className="mt-1 text-sm text-gray-600">
               {trip.pickupLocation} → {trip.dropoffLocation}

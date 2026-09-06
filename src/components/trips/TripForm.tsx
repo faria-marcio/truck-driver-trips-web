@@ -12,7 +12,7 @@ interface FormValues {
   date: string;
   startTime: string;
   endTime: string;
-  distance: string;
+  distanceKm: string;
   pickupLocation: string;
   dropoffLocation: string;
 }
@@ -21,7 +21,7 @@ const initialValues: FormValues = {
   date: '',
   startTime: '',
   endTime: '',
-  distance: '',
+  distanceKm: '',
   pickupLocation: '',
   dropoffLocation: '',
 };
@@ -43,7 +43,7 @@ export function TripForm({ isSubmitting, onSubmit }: TripFormProps) {
   };
 
   const validate = (): CreateTripInput | null => {
-    if (!values.date || !values.startTime || !values.endTime || !values.distance.trim()) {
+    if (!values.date || !values.startTime || !values.endTime || !values.distanceKm.trim()) {
       setError('Date, start time, end time, and distance are required.');
       return null;
     }
@@ -58,8 +58,8 @@ export function TripForm({ isSubmitting, onSubmit }: TripFormProps) {
       return null;
     }
 
-    const distance = Number(values.distance);
-    if (!Number.isFinite(distance) || distance <= 0) {
+    const distanceKm = Number(values.distanceKm);
+    if (!Number.isFinite(distanceKm) || distanceKm <= 0) {
       setError('Distance must be a number greater than zero.');
       return null;
     }
@@ -68,7 +68,7 @@ export function TripForm({ isSubmitting, onSubmit }: TripFormProps) {
       date: values.date,
       startTime: values.startTime,
       endTime: values.endTime,
-      distance,
+      distanceKm,
       pickupLocation: values.pickupLocation.trim(),
       dropoffLocation: values.dropoffLocation.trim(),
     };
@@ -117,8 +117,8 @@ export function TripForm({ isSubmitting, onSubmit }: TripFormProps) {
               type="number"
               min="0.1"
               step="0.1"
-              value={values.distance}
-              onChange={(event) => updateField('distance', event.target.value)}
+              value={values.distanceKm}
+              onChange={(event) => updateField('distanceKm', event.target.value)}
               className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
               required
             />

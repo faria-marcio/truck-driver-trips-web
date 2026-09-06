@@ -13,7 +13,7 @@ export interface Trip {
   date: string;
   startTime: string;
   endTime: string;
-  distance: number;
+  distanceKm: number;
   pickupLocation: string;
   dropoffLocation: string;
   createdAt: string;
@@ -24,7 +24,7 @@ export interface CreateTripInput {
   date: string;
   startTime: string;
   endTime: string;
-  distance: number;
+  distanceKm: number;
   pickupLocation: string;
   dropoffLocation: string;
 }
