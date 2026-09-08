@@ -44,11 +44,22 @@ This frontend expects these authenticated/unauthenticated endpoints:
     - or wrapped in `{ "success": true, "data": { ...same payload } }`
 - `GET /api/trips`
   - Requires an `Authorization` header using the bearer scheme with the access token returned by login.
-  - Expected response: `Trip[]` or `{ "success": true, "data": Trip[] }`
+  - Optional query parameters: `from`, `to`, `truckId`, `page`, and `pageSize`.
+  - Expected response: `Trip[]` (the client also tolerates wrapped responses for compatibility).
 - `POST /api/trips`
   - Requires an `Authorization` header using the bearer scheme with the access token returned by login.
-  - Request body: `{ date, startTime, endTime, distanceKm, pickupLocation, dropoffLocation }`
+  - Request body: `{ date, truckId, startKm, endKm, pickupLocation, dropoffLocation, commissionAmount, bolNumber, fuelCostAmount, waitTimeMinutes, notes }`
+  - `commissionAmount`, `fuelCostAmount`, and `waitTimeMinutes` are numeric and use zero when there is no cost or wait. Blank `bolNumber` and `notes` are sent as `null`.
   - Expected response: `Trip` or `{ "success": true, "data": Trip }`
+- `PUT /api/trips/{id}`
+  - Requires an `Authorization` header and accepts the same request body as `POST /api/trips`.
+- `DELETE /api/trips/{id}`
+  - Requires an `Authorization` header and returns a successful empty response.
+- `GET /api/trips/summary`
+  - Requires an `Authorization` header and accepts the same `from`, `to`, and `truckId` filters as `GET /api/trips`.
+  - Expected response: `{ "count": number, "totalDistanceKm": number, "totalCommissionAmount": number, "commissionPerKm": number }`, optionally wrapped in `{ "success": true, "data": ... }`.
+
+Trip responses also include the server-owned `id`, `driverId`, calculated `distanceKm`, `createdAtUtc`, `updatedAtUtc`, and optional `version` fields. Start/end times and client-supplied distance are not part of the frontend contract.
 
 ## Development
 

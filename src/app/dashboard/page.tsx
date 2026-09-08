@@ -3,8 +3,12 @@ import { redirect } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { DashboardClient } from '@/components/trips/DashboardClient';
 import { authOptions } from '@/lib/auth';
-import { listTrips } from '@/lib/trips';
-import type { Trip } from '@/types';
+import { getTripSummary, listTrips } from '@/lib/trips';
+import type { Trip, TripSummary } from '@/types';
+
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -13,19 +17,31 @@ export default async function DashboardPage() {
     redirect('/auth/login');
   }
 
-  let initialTrips: Trip[] = [];
-  let initialError: string | null = null;
-
-  try {
-    initialTrips = await listTrips(session.accessToken);
-  } catch {
-    initialError = 'Failed to load trips';
-  }
+  const [tripsResult, summaryResult] = await Promise.allSettled([
+    listTrips(session.accessToken),
+    getTripSummary(session.accessToken),
+  ]);
+  const initialTrips: Trip[] = tripsResult.status === 'fulfilled' ? tripsResult.value : [];
+  const initialSummary: TripSummary | null =
+    summaryResult.status === 'fulfilled' ? summaryResult.value : null;
+  const initialError =
+    tripsResult.status === 'rejected'
+      ? getErrorMessage(tripsResult.reason, 'Failed to load trips.')
+      : null;
+  const initialSummaryError =
+    summaryResult.status === 'rejected'
+      ? getErrorMessage(summaryResult.reason, 'Failed to load trip summary.')
+      : null;
 
   return (
     <>
       <Header />
-      <DashboardClient initialTrips={initialTrips} initialError={initialError} />
+      <DashboardClient
+        initialTrips={initialTrips}
+        initialSummary={initialSummary}
+        initialError={initialError}
+        initialSummaryError={initialSummaryError}
+      />
     </>
   );
 }
