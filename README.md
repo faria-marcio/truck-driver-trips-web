@@ -66,6 +66,8 @@ Truck management uses these authenticated endpoints:
 - `GET /api/trucks`
   - Drivers receive active trucks. Admins may pass `includeRetired=true` to include retired trucks.
   - Expected response: a raw `TruckResponse[]`.
+- `GET /api/trucks/{id}`
+  - Returns one visible `TruckResponse`; retired trucks are visible only to admins.
 - `GET /api/trucks/me`
   - Returns the authenticated driver's current `TruckResponse`, or `404` when no truck is assigned.
 - `POST /api/trucks`

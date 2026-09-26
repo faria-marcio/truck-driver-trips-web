@@ -130,6 +130,19 @@ export async function listTrucks(
   }
 }
 
+export async function getTruck(accessToken: string, truckId: string): Promise<Truck> {
+  try {
+    const response = await api.get<Truck | ApiResponse<Truck>>(
+      `${TRUCK_ENDPOINTS.collection}/${encodeURIComponent(truckId)}`,
+      { headers: getAuthHeaders(accessToken) },
+    );
+
+    return getTruckPayload(response.data);
+  } catch (error: unknown) {
+    throw new Error(getApiErrorMessage(error, 'Failed to load truck'));
+  }
+}
+
 export async function getCurrentTruckAssignment(accessToken: string): Promise<TruckAssignment> {
   try {
     const response = await api.get<Truck | ApiResponse<Truck>>(TRUCK_ENDPOINTS.currentAssignment, {
