@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { createTrip, deleteTrip, getTripDateRange, getTripSummary, listTrips, updateTrip } from '@/lib/trips';
-import type { Trip, TripInput, TripSummary } from '@/types';
+import { getCurrentTruckAssignment, listTrucks } from '@/lib/trucks';
+import type { Trip, TripInput, TripSummary, Truck } from '@/types';
 import type { TripPeriod } from '@/lib/trips';
-import { formatAmount, formatNumber } from '@/lib/utils';
+import { formatAmount, formatNumber, getTripTruckLabel } from '@/lib/utils';
 import { TripForm } from '@/components/trips/TripForm';
 import { TripList } from '@/components/trips/TripList';
 
@@ -66,13 +67,18 @@ export function DashboardClient({
   const { data: session } = useSession();
   const [trips, setTrips] = useState<Trip[]>(sortTripsByDateDesc(initialTrips));
   const [summary, setSummary] = useState<TripSummary | null>(initialSummary);
+  const [trucks, setTrucks] = useState<Truck[]>([]);
+  const [assignedTruckId, setAssignedTruckId] = useState<string | null>(null);
   const [activePeriod, setActivePeriod] = useState<TripPeriod>('all');
   const [isLoading, setIsLoading] = useState(false);
   const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [isTrucksLoading, setIsTrucksLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(initialError);
   const [summaryError, setSummaryError] = useState<string | null>(initialSummaryError);
+  const [truckError, setTruckError] = useState<string | null>(null);
+  const [assignmentError, setAssignmentError] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
@@ -118,6 +124,47 @@ export function DashboardClient({
     },
     [accessToken],
   );
+
+  const loadTrucks = useCallback(async () => {
+    if (!accessToken) {
+      setTruckError('Your session has expired. Please log in again.');
+      return;
+    }
+
+    setIsTrucksLoading(true);
+    setTruckError(null);
+    setAssignmentError(null);
+
+    const [trucksResult, assignmentResult] = await Promise.allSettled([
+      listTrucks(accessToken),
+      getCurrentTruckAssignment(accessToken),
+    ]);
+
+    if (trucksResult.status === 'fulfilled') {
+      setTrucks(trucksResult.value);
+    } else {
+      setTruckError(getErrorMessage(trucksResult.reason, 'Failed to load active trucks.'));
+    }
+
+    if (assignmentResult.status === 'fulfilled') {
+      setAssignedTruckId(assignmentResult.value?.id ?? null);
+    } else if (trucksResult.status === 'fulfilled') {
+      setAssignmentError(
+        getErrorMessage(assignmentResult.reason, 'Failed to load your current truck assignment.'),
+      );
+      setAssignedTruckId(null);
+    }
+
+    setIsTrucksLoading(false);
+  }, [accessToken]);
+
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => {
+      void loadTrucks();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
+  }, [loadTrucks]);
 
   useEffect(() => {
     if (!tripToDelete) {
@@ -244,11 +291,14 @@ export function DashboardClient({
           </div>
           <button
             type="button"
-            onClick={() => void loadDashboard(activePeriod)}
-            disabled={isLoading || isSummaryLoading}
+            onClick={() => {
+              void loadDashboard(activePeriod);
+              void loadTrucks();
+            }}
+            disabled={isLoading || isSummaryLoading || isTrucksLoading}
             className="min-h-11 rounded-md border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isLoading || isSummaryLoading ? 'Refreshing...' : 'Refresh'}
+            {isLoading || isSummaryLoading || isTrucksLoading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
         <p className="mt-3 text-xs text-gray-600">Showing: {activePeriodLabel}</p>
@@ -259,7 +309,10 @@ export function DashboardClient({
           <p>{error}</p>
           <button
             type="button"
-            onClick={() => void loadDashboard(activePeriod)}
+            onClick={() => {
+              void loadDashboard(activePeriod);
+              void loadTrucks();
+            }}
             className="min-h-11 shrink-0 rounded-md border border-red-400 px-3 font-semibold text-red-900 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-600"
           >
             Try again
@@ -270,6 +323,12 @@ export function DashboardClient({
       {summaryError ? (
         <div role="alert" className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
           Summary unavailable: {summaryError}
+        </div>
+      ) : null}
+
+      {assignmentError ? (
+        <div role="alert" className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+          Current truck assignment unavailable: {assignmentError}
         </div>
       ) : null}
 
@@ -297,6 +356,7 @@ export function DashboardClient({
 
       <TripList
         trips={trips}
+        trucks={trucks}
         isLoading={isLoading}
         onAdd={openCreateForm}
         onEdit={openEditForm}
@@ -307,6 +367,10 @@ export function DashboardClient({
         key={isFormOpen ? editingTrip?.id ?? 'new-trip' : 'closed-trip-form'}
         isOpen={isFormOpen}
         trip={editingTrip}
+        trucks={trucks}
+        assignedTruckId={assignedTruckId}
+        trucksLoading={isTrucksLoading}
+        truckError={truckError}
         isSubmitting={isSubmitting}
         onCancel={closeForm}
         onSubmit={handleSave}
@@ -323,7 +387,8 @@ export function DashboardClient({
             <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Delete trip</p>
             <h2 id="delete-trip-title" className="mt-1 text-xl font-bold text-gray-950">Remove this trip?</h2>
             <p className="mt-3 text-sm leading-6 text-gray-700">
-              This will permanently delete the {tripToDelete.truckId} trip from {tripToDelete.pickupLocation} to {tripToDelete.dropoffLocation}.
+              This will permanently delete the {getTripTruckLabel(tripToDelete)} trip from{' '}
+              {tripToDelete.pickupLocation} to {tripToDelete.dropoffLocation}.
             </p>
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
               <button
