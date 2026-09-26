@@ -1,8 +1,9 @@
-import { formatAmount, formatDate, formatNumber } from '@/lib/utils';
-import type { Trip } from '@/types';
+import { formatAmount, formatDate, formatNumber, formatTruckLabel, getTripTruckLabel } from '@/lib/utils';
+import type { Trip, Truck } from '@/types';
 
 interface TripListProps {
   trips: Trip[];
+  trucks: Truck[];
   isLoading: boolean;
   onAdd: () => void;
   onEdit: (trip: Trip) => void;
@@ -25,20 +26,28 @@ function TripListSkeleton() {
 
 function TripCard({
   trip,
+  trucks,
   onEdit,
   onDelete,
 }: {
   trip: Trip;
+  trucks: Truck[];
   onEdit: (trip: Trip) => void;
   onDelete: (trip: Trip) => void;
 }) {
+  const activeTruck = trucks.find((truck) => truck.id === trip.truckId);
+  const truckLabel = activeTruck ? formatTruckLabel(activeTruck) : getTripTruckLabel(trip);
+
   return (
     <li>
       <article className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="text-sm font-semibold text-gray-950">{formatDate(trip.date)}</p>
-            <p className="mt-1 text-sm font-medium text-blue-800">{trip.truckId}</p>
+            <p className="mt-1 text-sm font-medium text-blue-800">
+              <span className="sr-only">Truck: </span>
+              {truckLabel}
+            </p>
           </div>
           <div className="flex shrink-0 gap-2">
             <button
@@ -102,7 +111,7 @@ function TripCard({
   );
 }
 
-export function TripList({ trips, isLoading, onAdd, onEdit, onDelete }: TripListProps) {
+export function TripList({ trips, trucks, isLoading, onAdd, onEdit, onDelete }: TripListProps) {
   if (isLoading) {
     return <TripListSkeleton />;
   }
@@ -133,7 +142,7 @@ export function TripList({ trips, isLoading, onAdd, onEdit, onDelete }: TripList
       </div>
       <ul className="space-y-3">
         {trips.map((trip) => (
-          <TripCard key={trip.id} trip={trip} onEdit={onEdit} onDelete={onDelete} />
+          <TripCard key={trip.id} trip={trip} trucks={trucks} onEdit={onEdit} onDelete={onDelete} />
         ))}
       </ul>
     </section>

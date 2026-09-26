@@ -1,11 +1,16 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { Trip, TripInput } from '@/types';
+import { formatTruckLabel, getTripTruckLabel } from '@/lib/utils';
+import type { Trip, TripInput, Truck } from '@/types';
 
 interface TripFormProps {
   isOpen: boolean;
   trip: Trip | null;
+  trucks: Truck[];
+  assignedTruckId: string | null;
+  trucksLoading: boolean;
+  truckError: string | null;
   isSubmitting: boolean;
   onCancel: () => void;
   onSubmit: (input: TripInput) => Promise<boolean>;
@@ -83,7 +88,17 @@ function getNumberValue(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-export function TripForm({ isOpen, trip, isSubmitting, onCancel, onSubmit }: TripFormProps) {
+export function TripForm({
+  isOpen,
+  trip,
+  trucks,
+  assignedTruckId,
+  trucksLoading,
+  truckError,
+  isSubmitting,
+  onCancel,
+  onSubmit,
+}: TripFormProps) {
   const [values, setValues] = useState<FormValues>(() => getInitialValues(trip));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -113,6 +128,18 @@ export function TripForm({ isOpen, trip, isSubmitting, onCancel, onSubmit }: Tri
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, isSubmitting, onCancel]);
 
+  useEffect(() => {
+    if (!isOpen || trip || values.truckId || !assignedTruckId) {
+      return;
+    }
+
+    const preselectTimer = window.setTimeout(() => {
+      setValues((current) => ({ ...current, truckId: assignedTruckId }));
+    }, 0);
+
+    return () => window.clearTimeout(preselectTimer);
+  }, [assignedTruckId, isOpen, trip, values.truckId]);
+
   if (!isOpen) {
     return null;
   }
@@ -139,8 +166,13 @@ export function TripForm({ isOpen, trip, isSubmitting, onCancel, onSubmit }: Tri
       nextErrors.date = 'Enter a valid date.';
     }
 
+    const selectedTruck = trucks.find((truck) => truck.id === values.truckId);
     if (!values.truckId.trim()) {
-      nextErrors.truckId = 'Truck ID is required.';
+      nextErrors.truckId = 'Select an active truck.';
+    } else if (!selectedTruck) {
+      nextErrors.truckId = trip
+        ? 'This recorded truck is retired or unavailable. Choose an active truck before saving.'
+        : 'Select an active truck from the list.';
     }
 
     const startKm = getNumberValue(values.startKm);
@@ -299,17 +331,41 @@ export function TripForm({ isOpen, trip, isSubmitting, onCancel, onSubmit }: Tri
               </label>
 
               <label className="text-sm font-medium text-gray-800">
-                Truck ID
-                <input
-                  type="text"
+                Truck
+                <select
+                  id="truckId"
                   value={values.truckId}
                   onChange={(event) => updateField('truckId', event.target.value)}
                   aria-invalid={Boolean(errors.truckId)}
                   aria-describedby={describedBy('truckId')}
                   className={getInputClass(Boolean(errors.truckId))}
-                  placeholder="e.g. TRK-104"
                   required
-                />
+                  disabled={trucksLoading || Boolean(truckError)}
+                >
+                  <option value="">
+                    {trucksLoading ? 'Loading active trucks...' : 'Select an active truck'}
+                  </option>
+                  {trip && !trucks.some((truck) => truck.id === trip.truckId) ? (
+                    <option value={trip.truckId} disabled>
+                      {getTripTruckLabel(trip)} (retired or unavailable)
+                    </option>
+                  ) : null}
+                  {trucks.map((truck) => (
+                    <option key={truck.id} value={truck.id}>
+                      {formatTruckLabel(truck)}
+                    </option>
+                  ))}
+                </select>
+                {truckError ? (
+                  <p role="alert" className="mt-2 text-sm text-red-700">
+                    {truckError}
+                  </p>
+                ) : null}
+                {!trucksLoading && !truckError && trucks.length === 0 ? (
+                  <p className="mt-2 text-sm text-gray-600">
+                    No active trucks are available. Ask an administrator to add or assign one.
+                  </p>
+                ) : null}
                 {fieldError('truckId')}
               </label>
             </div>

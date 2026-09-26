@@ -1,7 +1,11 @@
 import type { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { api, getApiErrorMessage } from '@/lib/api';
-import type { ApiResponse, AuthResponse } from '@/types';
+import type { ApiResponse, AuthResponse, UserRole } from '@/types';
+
+function normalizeUserRole(role: AuthResponse['user']['role']): UserRole {
+  return role.toLowerCase() === 'admin' ? 'admin' : 'driver';
+}
 
 function extractAuthPayload(data: AuthResponse | ApiResponse<AuthResponse>): AuthResponse {
   if ('token' in data && 'user' in data) {
@@ -35,12 +39,13 @@ export const authOptions: NextAuthOptions = {
           });
 
           const { token, user } = extractAuthPayload(response.data);
+          const role = normalizeUserRole(user.role);
 
           return {
             id: user.id,
             email: user.email,
             name: user.name,
-            role: user.role,
+            role,
             accessToken: token,
           };
         } catch (error: unknown) {

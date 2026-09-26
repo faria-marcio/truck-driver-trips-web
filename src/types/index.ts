@@ -7,11 +7,36 @@ export interface User {
   role: UserRole;
 }
 
+export interface Truck {
+  id: string;
+  registrationNumber: string;
+  make: string | null;
+  model: string | null;
+  isActive: boolean;
+  retiredAtUtc: string | null;
+  createdAtUtc: string;
+  updatedAtUtc: string;
+  assignedDriverId: string | null;
+  assignedDriverName: string | null;
+}
+
+export interface TruckInput {
+  registrationNumber: string;
+  make: string | null;
+  model: string | null;
+  isActive?: boolean;
+}
+
+export type TruckAssignment = Truck | null;
+
 export interface Trip {
   id: string;
   driverId: string;
   date: string;
   truckId: string;
+  truckRegistrationNumber?: string | null;
+  truckLabel?: string | null;
+  truck?: Pick<Truck, 'id' | 'registrationNumber' | 'make' | 'model' | 'isActive'> | null;
   startKm: number;
   endKm: number;
   distanceKm: number;
@@ -68,5 +93,7 @@ export interface ApiResponse<T> {
 
 export interface AuthResponse {
   token: string;
-  user: User;
+  user: Omit<User, 'role'> & {
+    role: UserRole | 'Driver' | 'Admin';
+  };
 }

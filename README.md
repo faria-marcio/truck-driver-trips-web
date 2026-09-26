@@ -59,7 +59,27 @@ This frontend expects these authenticated/unauthenticated endpoints:
   - Requires an `Authorization` header and accepts the same `from`, `to`, and `truckId` filters as `GET /api/trips`.
   - Expected response: `{ "count": number, "totalDistanceKm": number, "totalCommissionAmount": number, "commissionPerKm": number }`, optionally wrapped in `{ "success": true, "data": ... }`.
 
-Trip responses also include the server-owned `id`, `driverId`, calculated `distanceKm`, `createdAtUtc`, `updatedAtUtc`, and optional `version` fields. Start/end times and client-supplied distance are not part of the frontend contract.
+Trip responses also include the server-owned `id`, `driverId`, calculated `distanceKm`, `truckRegistrationNumber`, `createdAtUtc`, `updatedAtUtc`, and optional `version` fields. `truckId` is the stable truck GUID. Start/end times and client-supplied distance are not part of the frontend contract.
+
+Truck management uses these authenticated endpoints:
+
+- `GET /api/trucks`
+  - Drivers receive active trucks. Admins may pass `includeRetired=true` to include retired trucks.
+  - Expected response: a raw `TruckResponse[]`.
+- `GET /api/trucks/me`
+  - Returns the authenticated driver's current `TruckResponse`, or `404` when no truck is assigned.
+- `POST /api/trucks`
+  - Admin only. Body: `{ "registrationNumber": string, "make": string | null, "model": string | null }`.
+- `PUT /api/trucks/{id}`
+  - Admin only. Accepts the same body as create.
+- `POST /api/trucks/{id}/retire`
+  - Admin only. Soft-retires the truck and clears its current assignment while preserving historical trip references.
+- `PUT /api/trucks/assignments/{driverId}`
+  - Admin only. Body: `{ "truckId": string }` where the value is a truck GUID.
+- `DELETE /api/trucks/assignments/{driverId}`
+  - Admin only. Clears the driver's current assignment.
+
+The admin UI is available at `/admin/trucks` and is server-protected by the normalized NextAuth `admin` role. It uses a driver account ID for assignment because the API contract does not expose a driver directory endpoint. Drivers do not see the management link and are redirected away from the route. New trips select from active truck GUIDs and preselect `/api/trucks/me`; editing a historical trip keeps its recorded truck selection visible, including when that truck has since been retired.
 
 ## Development
 
@@ -74,6 +94,7 @@ App routes:
 - `/auth/login` -> credentials login
 - `/auth/logout` -> sign-out page
 - `/dashboard` -> protected trip dashboard
+- `/admin/trucks` -> admin-only truck and assignment management
 
 ## Validation commands
 

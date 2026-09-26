@@ -21,6 +21,14 @@ export function Header() {
 
         {session ? (
           <div className="flex items-center gap-2 sm:gap-4">
+            {session.user?.role === 'admin' ? (
+              <Link
+                href="/admin/trucks"
+                className="min-h-11 rounded-md border border-blue-300 px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-600"
+              >
+                Manage trucks
+              </Link>
+            ) : null}
             <span className="hidden text-sm text-gray-600 sm:inline">{session.user?.email}</span>
             <button
               type="button"
