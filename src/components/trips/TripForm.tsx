@@ -150,6 +150,24 @@ export function TripForm({
       return;
     }
 
+    const resetTimer = window.setTimeout(() => {
+      setValues(getInitialValues(trip, defaultStartKm));
+      setErrors({});
+      setFormError(null);
+      setPickupCity(null);
+      setDropoffCity(null);
+      setRouteDistance(null);
+      setRouteError(null);
+    }, 0);
+
+    return () => window.clearTimeout(resetTimer);
+  }, [defaultStartKm, isOpen, trip]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !isSubmitting) {
         onCancel();
@@ -198,15 +216,16 @@ export function TripForm({
   };
   
   useEffect(() => {
-    if (!isOpen || trip || values.truckId || !assignedTruckId) {
+    if (!isOpen || trip || !assignedTruckId) {
       return;
     }
 
     const preselectTimer = window.setTimeout(() => {
-      setValues((current) => ({ ...current, truckId: assignedTruckId }));
+      setValues((current) => (current.truckId ? current : { ...current, truckId: assignedTruckId }));
     }, 0);
+
     return () => window.clearTimeout(preselectTimer);
-  }, [assignedTruckId, isOpen, trip, values.truckId]);
+  }, [assignedTruckId, isOpen, trip]);
 
   if (!isOpen) {
     return null;
@@ -239,9 +258,10 @@ export function TripForm({
     }
 
     const selectedTruck = trucks.find((truck) => truck.id === values.truckId);
+    const isCurrentTripTruck = trip ? values.truckId === trip.truckId : false;
     if (!values.truckId.trim()) {
       nextErrors.truckId = 'Select an active truck.';
-    } else if (!selectedTruck) {
+    } else if (!selectedTruck && !isCurrentTripTruck) {
       nextErrors.truckId = trip
         ? 'This recorded truck is retired or unavailable. Choose an active truck before saving.'
         : 'Select an active truck from the list.';
@@ -349,6 +369,13 @@ export function TripForm({
   };
 
   const describedBy = (name: FieldName) => (errors[name] ? `${name}-error` : undefined);
+  const truckFieldDescribedBy = [
+    describedBy('truckId'),
+    truckError ? 'truckId-truck-error' : undefined,
+    !trucksLoading && !truckError && trucks.length === 0 ? 'truckId-truck-help' : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ') || undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-gray-950/60 p-0 sm:items-center sm:p-4">
@@ -409,7 +436,7 @@ export function TripForm({
                   value={values.truckId}
                   onChange={(event) => updateField('truckId', event.target.value)}
                   aria-invalid={Boolean(errors.truckId)}
-                  aria-describedby={describedBy('truckId')}
+                  aria-describedby={truckFieldDescribedBy}
                   className={getInputClass(Boolean(errors.truckId))}
                   required
                   disabled={trucksLoading || Boolean(truckError)}
@@ -418,7 +445,7 @@ export function TripForm({
                     {trucksLoading ? 'Loading active trucks...' : 'Select an active truck'}
                   </option>
                   {trip && !trucks.some((truck) => truck.id === trip.truckId) ? (
-                    <option value={trip.truckId} disabled>
+                    <option value={trip.truckId}>
                       {getTripTruckLabel(trip)} (retired or unavailable)
                     </option>
                   ) : null}
@@ -429,12 +456,12 @@ export function TripForm({
                   ))}
                 </select>
                 {truckError ? (
-                  <p role="alert" className="mt-2 text-sm text-red-700">
+                  <p id="truckId-truck-error" role="alert" className="mt-2 text-sm text-red-700">
                     {truckError}
                   </p>
                 ) : null}
                 {!trucksLoading && !truckError && trucks.length === 0 ? (
-                  <p className="mt-2 text-sm text-gray-600">
+                  <p id="truckId-truck-help" className="mt-2 text-sm text-gray-600">
                     No active trucks are available. Ask an administrator to add or assign one.
                   </p>
                 ) : null}

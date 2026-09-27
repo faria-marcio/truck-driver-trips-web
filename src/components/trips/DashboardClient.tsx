@@ -153,16 +153,19 @@ export function DashboardClient({
     if (trucksResult.status === 'fulfilled') {
       setTrucks(trucksResult.value);
     } else {
+      setTrucks([]);
       setTruckError(getErrorMessage(trucksResult.reason, 'Failed to load active trucks.'));
     }
 
     if (assignmentResult.status === 'fulfilled') {
       setAssignedTruckId(assignmentResult.value?.id ?? null);
-    } else if (trucksResult.status === 'fulfilled') {
-      setAssignmentError(
-        getErrorMessage(assignmentResult.reason, 'Failed to load your current truck assignment.'),
-      );
+    } else {
       setAssignedTruckId(null);
+      if (trucksResult.status === 'fulfilled') {
+        setAssignmentError(
+          getErrorMessage(assignmentResult.reason, 'Failed to load your current truck assignment.'),
+        );
+      }
     }
 
     setIsTrucksLoading(false);
