@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { CityAutocomplete } from '@/components/trips/CityAutocomplete';
+import { getRouteDistance, type CitySuggestion, type RouteDistance } from '@/lib/locations';
 import { formatTruckLabel, getTripTruckLabel } from '@/lib/utils';
 import type { Trip, TripInput, Truck } from '@/types';
 
@@ -12,6 +14,8 @@ interface TripFormProps {
   trucksLoading: boolean;
   truckError: string | null;
   isSubmitting: boolean;
+  defaultStartKm?: number;
+  accessToken?: string;
   onCancel: () => void;
   onSubmit: (input: TripInput) => Promise<boolean>;
 }
@@ -41,12 +45,12 @@ function getTodayInput(): string {
   return `${year}-${month}-${day}`;
 }
 
-function getInitialValues(trip: Trip | null): FormValues {
+function getInitialValues(trip: Trip | null, defaultStartKm?: number): FormValues {
   if (!trip) {
     return {
       date: getTodayInput(),
       truckId: '',
-      startKm: '',
+      startKm: defaultStartKm === undefined ? '' : formatOdometerValue(defaultStartKm),
       endKm: '',
       pickupLocation: '',
       dropoffLocation: '',
@@ -61,8 +65,8 @@ function getInitialValues(trip: Trip | null): FormValues {
   return {
     date: trip.date,
     truckId: trip.truckId,
-    startKm: String(trip.startKm),
-    endKm: String(trip.endKm),
+    startKm: formatOdometerValue(trip.startKm),
+    endKm: formatOdometerValue(trip.endKm),
     pickupLocation: trip.pickupLocation,
     dropoffLocation: trip.dropoffLocation,
     commissionAmount: String(trip.commissionAmount),
@@ -88,6 +92,28 @@ function getNumberValue(value: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function formatOdometerValue(value: number): string {
+  return new Intl.NumberFormat('pt-BR', {
+    maximumFractionDigits: 3,
+  }).format(value);
+}
+
+function formatOdometerInput(value: string): string {
+  const normalized = value.replace(/[^\d,]/g, '');
+  if (!normalized) {
+    return '';
+  }
+
+  const [integerPart, decimalPart] = normalized.split(',');
+  const groupedInteger = (integerPart || '0').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  return decimalPart === undefined ? groupedInteger : `${groupedInteger},${decimalPart.slice(0, 3)}`;
+}
+
+function getOdometerValue(value: string): number | null {
+  return getNumberValue(value.replace(/\./g, '').replace(',', '.'));
+}
+
 export function TripForm({
   isOpen,
   trip,
@@ -96,12 +122,18 @@ export function TripForm({
   trucksLoading,
   truckError,
   isSubmitting,
+  defaultStartKm,
+  accessToken,
   onCancel,
   onSubmit,
 }: TripFormProps) {
-  const [values, setValues] = useState<FormValues>(() => getInitialValues(trip));
+  const [values, setValues] = useState<FormValues>(() => getInitialValues(trip, defaultStartKm));
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [pickupCity, setPickupCity] = useState<CitySuggestion | null>(null);
+  const [dropoffCity, setDropoffCity] = useState<CitySuggestion | null>(null);
+  const [routeDistance, setRouteDistance] = useState<RouteDistance | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const firstInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -112,6 +144,24 @@ export function TripForm({
     const focusTimer = window.setTimeout(() => firstInputRef.current?.focus(), 0);
     return () => window.clearTimeout(focusTimer);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const resetTimer = window.setTimeout(() => {
+      setValues(getInitialValues(trip, defaultStartKm));
+      setErrors({});
+      setFormError(null);
+      setPickupCity(null);
+      setDropoffCity(null);
+      setRouteDistance(null);
+      setRouteError(null);
+    }, 0);
+
+    return () => window.clearTimeout(resetTimer);
+  }, [defaultStartKm, isOpen, trip]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -129,16 +179,53 @@ export function TripForm({
   }, [isOpen, isSubmitting, onCancel]);
 
   useEffect(() => {
-    if (!isOpen || trip || values.truckId || !assignedTruckId) {
+    if (!pickupCity || !dropoffCity || !accessToken) {
+      return;
+    }
+
+    const controller = new AbortController();
+
+    void getRouteDistance(accessToken, pickupCity, dropoffCity, controller.signal)
+      .then((distance) => {
+        if (!controller.signal.aborted) {
+          setRouteDistance(distance);
+        }
+      })
+      .catch((requestError: unknown) => {
+        if (!controller.signal.aborted) {
+          setRouteDistance(null);
+          setRouteError(
+            requestError instanceof Error ? requestError.message : 'Failed to calculate route distance',
+          );
+        }
+      });
+
+    return () => controller.abort();
+  }, [accessToken, dropoffCity, pickupCity]);
+
+  const handlePickupCitySelection = (city: CitySuggestion | null) => {
+    setPickupCity(city);
+    setRouteDistance(null);
+    setRouteError(null);
+  };
+
+  const handleDropoffCitySelection = (city: CitySuggestion | null) => {
+    setDropoffCity(city);
+    setRouteDistance(null);
+    setRouteError(null);
+  };
+  
+  useEffect(() => {
+    if (!isOpen || trip || !assignedTruckId) {
       return;
     }
 
     const preselectTimer = window.setTimeout(() => {
-      setValues((current) => ({ ...current, truckId: assignedTruckId }));
+      setValues((current) => (current.truckId ? current : { ...current, truckId: assignedTruckId }));
     }, 0);
 
     return () => window.clearTimeout(preselectTimer);
-  }, [assignedTruckId, isOpen, trip, values.truckId]);
+  }, [assignedTruckId, isOpen, trip]);
 
   if (!isOpen) {
     return null;
@@ -158,6 +245,10 @@ export function TripForm({
     setFormError(null);
   };
 
+  const updateOdometerField = (name: 'startKm' | 'endKm', value: string) => {
+    updateField(name, formatOdometerInput(value));
+  };
+
   const validate = (): TripInput | null => {
     const nextErrors: FieldErrors = {};
     const dateIsValid = /^\d{4}-\d{2}-\d{2}$/.test(values.date) && !Number.isNaN(new Date(`${values.date}T00:00:00`).getTime());
@@ -167,16 +258,17 @@ export function TripForm({
     }
 
     const selectedTruck = trucks.find((truck) => truck.id === values.truckId);
+    const isCurrentTripTruck = trip ? values.truckId === trip.truckId : false;
     if (!values.truckId.trim()) {
       nextErrors.truckId = 'Select an active truck.';
-    } else if (!selectedTruck) {
+    } else if (!selectedTruck && !isCurrentTripTruck) {
       nextErrors.truckId = trip
         ? 'This recorded truck is retired or unavailable. Choose an active truck before saving.'
         : 'Select an active truck from the list.';
     }
 
-    const startKm = getNumberValue(values.startKm);
-    const endKm = getNumberValue(values.endKm);
+    const startKm = getOdometerValue(values.startKm);
+    const endKm = getOdometerValue(values.endKm);
     if (startKm === null || startKm < 0) {
       nextErrors.startKm = 'Enter an odometer value of zero or more.';
     }
@@ -277,6 +369,13 @@ export function TripForm({
   };
 
   const describedBy = (name: FieldName) => (errors[name] ? `${name}-error` : undefined);
+  const truckFieldDescribedBy = [
+    describedBy('truckId'),
+    truckError ? 'truckId-truck-error' : undefined,
+    !trucksLoading && !truckError && trucks.length === 0 ? 'truckId-truck-help' : undefined,
+  ]
+    .filter(Boolean)
+    .join(' ') || undefined;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-gray-950/60 p-0 sm:items-center sm:p-4">
@@ -337,7 +436,7 @@ export function TripForm({
                   value={values.truckId}
                   onChange={(event) => updateField('truckId', event.target.value)}
                   aria-invalid={Boolean(errors.truckId)}
-                  aria-describedby={describedBy('truckId')}
+                  aria-describedby={truckFieldDescribedBy}
                   className={getInputClass(Boolean(errors.truckId))}
                   required
                   disabled={trucksLoading || Boolean(truckError)}
@@ -346,7 +445,7 @@ export function TripForm({
                     {trucksLoading ? 'Loading active trucks...' : 'Select an active truck'}
                   </option>
                   {trip && !trucks.some((truck) => truck.id === trip.truckId) ? (
-                    <option value={trip.truckId} disabled>
+                    <option value={trip.truckId}>
                       {getTripTruckLabel(trip)} (retired or unavailable)
                     </option>
                   ) : null}
@@ -357,12 +456,12 @@ export function TripForm({
                   ))}
                 </select>
                 {truckError ? (
-                  <p role="alert" className="mt-2 text-sm text-red-700">
+                  <p id="truckId-truck-error" role="alert" className="mt-2 text-sm text-red-700">
                     {truckError}
                   </p>
                 ) : null}
                 {!trucksLoading && !truckError && trucks.length === 0 ? (
-                  <p className="mt-2 text-sm text-gray-600">
+                  <p id="truckId-truck-help" className="mt-2 text-sm text-gray-600">
                     No active trucks are available. Ask an administrator to add or assign one.
                   </p>
                 ) : null}
@@ -376,12 +475,11 @@ export function TripForm({
                 <label className="text-sm font-medium text-gray-800">
                   Start km
                   <input
-                    type="number"
-                    min="0"
-                    step="0.1"
+                    type="text"
                     inputMode="decimal"
+                    tabIndex={-1}
                     value={values.startKm}
-                    onChange={(event) => updateField('startKm', event.target.value)}
+                    onChange={(event) => updateOdometerField('startKm', event.target.value)}
                     aria-invalid={Boolean(errors.startKm)}
                     aria-describedby={describedBy('startKm')}
                     className={getInputClass(Boolean(errors.startKm))}
@@ -393,12 +491,10 @@ export function TripForm({
                 <label className="text-sm font-medium text-gray-800">
                   End km
                   <input
-                    type="number"
-                    min="0"
-                    step="0.1"
+                    type="text"
                     inputMode="decimal"
                     value={values.endKm}
-                    onChange={(event) => updateField('endKm', event.target.value)}
+                    onChange={(event) => updateOdometerField('endKm', event.target.value)}
                     aria-invalid={Boolean(errors.endKm)}
                     aria-describedby={describedBy('endKm')}
                     className={getInputClass(Boolean(errors.endKm))}
@@ -411,36 +507,31 @@ export function TripForm({
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="text-sm font-medium text-gray-800">
-                Pickup location
-                <input
-                  type="text"
-                  value={values.pickupLocation}
-                  onChange={(event) => updateField('pickupLocation', event.target.value)}
-                  aria-invalid={Boolean(errors.pickupLocation)}
-                  aria-describedby={describedBy('pickupLocation')}
-                  className={getInputClass(Boolean(errors.pickupLocation))}
-                  placeholder="Where did you load?"
-                  required
-                />
-                {fieldError('pickupLocation')}
-              </label>
-
-              <label className="text-sm font-medium text-gray-800">
-                Dropoff location
-                <input
-                  type="text"
-                  value={values.dropoffLocation}
-                  onChange={(event) => updateField('dropoffLocation', event.target.value)}
-                  aria-invalid={Boolean(errors.dropoffLocation)}
-                  aria-describedby={describedBy('dropoffLocation')}
-                  className={getInputClass(Boolean(errors.dropoffLocation))}
-                  placeholder="Where did you unload?"
-                  required
-                />
-                {fieldError('dropoffLocation')}
-              </label>
+              <CityAutocomplete
+                id="pickup-location"
+                label="Pickup location"
+                value={values.pickupLocation}
+                accessToken={accessToken}
+                error={errors.pickupLocation}
+                onChange={(value) => updateField('pickupLocation', value)}
+                onSelect={handlePickupCitySelection}
+              />
+              <CityAutocomplete
+                id="dropoff-location"
+                label="Dropoff location"
+                value={values.dropoffLocation}
+                accessToken={accessToken}
+                error={errors.dropoffLocation}
+                onChange={(value) => updateField('dropoffLocation', value)}
+                onSelect={handleDropoffCitySelection}
+              />
             </div>
+            {routeDistance ? (
+              <p className="text-sm text-blue-800">
+                Estimated road distance: {routeDistance.distanceKm.toLocaleString('pt-BR')} km
+              </p>
+            ) : null}
+            {routeError ? <p className="text-sm text-amber-800">{routeError}</p> : null}
 
             <div>
               <h3 className="text-sm font-semibold text-gray-950">Money and time</h3>

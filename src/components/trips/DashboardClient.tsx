@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { createTrip, deleteTrip, getTripDateRange, getTripSummary, listTrips, updateTrip } from '@/lib/trips';
+import {
+  createTrip,
+  deleteTrip,
+  getLatestTripEndKm,
+  getTripDateRange,
+  getTripSummary,
+  listTrips,
+  updateTrip,
+} from '@/lib/trips';
 import { getCurrentTruckAssignment, listTrucks } from '@/lib/trucks';
 import type { Trip, TripInput, TripSummary, Truck } from '@/types';
 import type { TripPeriod } from '@/lib/trips';
@@ -82,6 +90,8 @@ export function DashboardClient({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
   const [tripToDelete, setTripToDelete] = useState<Trip | null>(null);
+  const [defaultStartKm, setDefaultStartKm] = useState<number | undefined>();
+  const [isOpeningForm, setIsOpeningForm] = useState(false);
 
   const accessToken = session?.accessToken;
   const activePeriodLabel = useMemo(
@@ -143,16 +153,19 @@ export function DashboardClient({
     if (trucksResult.status === 'fulfilled') {
       setTrucks(trucksResult.value);
     } else {
+      setTrucks([]);
       setTruckError(getErrorMessage(trucksResult.reason, 'Failed to load active trucks.'));
     }
 
     if (assignmentResult.status === 'fulfilled') {
       setAssignedTruckId(assignmentResult.value?.id ?? null);
-    } else if (trucksResult.status === 'fulfilled') {
-      setAssignmentError(
-        getErrorMessage(assignmentResult.reason, 'Failed to load your current truck assignment.'),
-      );
+    } else {
       setAssignedTruckId(null);
+      if (trucksResult.status === 'fulfilled') {
+        setAssignmentError(
+          getErrorMessage(assignmentResult.reason, 'Failed to load your current truck assignment.'),
+        );
+      }
     }
 
     setIsTrucksLoading(false);
@@ -181,9 +194,23 @@ export function DashboardClient({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isDeleting, tripToDelete]);
 
-  const openCreateForm = () => {
+  const openCreateForm = async () => {
+    if (!accessToken) {
+      setError('Your session has expired. Please log in again.');
+      return;
+    }
+
+    setIsOpeningForm(true);
     setEditingTrip(null);
-    setIsFormOpen(true);
+    try {
+      setDefaultStartKm(await getLatestTripEndKm(accessToken));
+    } catch (latestTripError: unknown) {
+      setDefaultStartKm(undefined);
+      setError(getErrorMessage(latestTripError, 'Failed to load the last trip.'));
+    } finally {
+      setIsOpeningForm(false);
+      setIsFormOpen(true);
+    }
   };
 
   const openEditForm = (trip: Trip) => {
@@ -217,6 +244,7 @@ export function DashboardClient({
         await updateTrip(accessToken, editingTrip.id, input);
       } else {
         await createTrip(accessToken, input);
+        setDefaultStartKm(input.endKm);
       }
 
       setIsFormOpen(false);
@@ -263,10 +291,11 @@ export function DashboardClient({
         </div>
         <button
           type="button"
-          onClick={openCreateForm}
+          onClick={() => void openCreateForm()}
+          disabled={isOpeningForm}
           className="min-h-12 w-full rounded-md bg-blue-700 px-5 py-3 text-sm font-bold text-white shadow-sm hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 sm:w-auto"
         >
-          Add trip
+          {isOpeningForm ? 'Loading last trip...' : 'Add trip'}
         </button>
       </header>
 
@@ -372,6 +401,8 @@ export function DashboardClient({
         trucksLoading={isTrucksLoading}
         truckError={truckError}
         isSubmitting={isSubmitting}
+        defaultStartKm={defaultStartKm}
+        accessToken={accessToken}
         onCancel={closeForm}
         onSubmit={handleSave}
       />

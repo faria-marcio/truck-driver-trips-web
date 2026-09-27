@@ -142,6 +142,11 @@ export async function listTrips(accessToken: string, query: TripQuery = {}): Pro
   }
 }
 
+export async function getLatestTripEndKm(accessToken: string): Promise<number | undefined> {
+  const [latestTrip] = await listTrips(accessToken, { page: 1, pageSize: 1 });
+  return latestTrip?.endKm;
+}
+
 export async function getTripSummary(accessToken: string, query: TripQuery = {}): Promise<TripSummary> {
   try {
     const response = await api.get<TripSummary | ApiResponse<TripSummary>>('/api/trips/summary', {
