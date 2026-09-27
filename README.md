@@ -26,8 +26,8 @@ cp .env.local.example .env.local
 
 Required values:
 
-- `NEXT_PUBLIC_API_URL` - Public base URL for the .NET API, including browser requests (example: `http://localhost:5000`). Aspire injects this value when running the frontend.
-- `API_URL` - Optional server-only fallback when `NEXT_PUBLIC_API_URL` is unavailable (example: `http://localhost:5000`)
+- `NEXT_PUBLIC_API_URL` - Public base URL for the .NET API, including browser requests (example: `https://localhost:7281`). Aspire injects this value when running the frontend.
+- `API_URL` - Optional server-only fallback when `NEXT_PUBLIC_API_URL` is unavailable (example: `https://localhost:7281`)
 - `NEXTAUTH_URL` - Frontend URL (example: `http://localhost:3000`)
 - `NEXTAUTH_SECRET` - Random long secret used by NextAuth JWT encryption/signing
 

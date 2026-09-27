@@ -3,7 +3,7 @@ import axios, { AxiosError } from 'axios';
 const configuredApiUrl =
   process.env.NEXT_PUBLIC_API_URL ||
   (typeof window === 'undefined' ? process.env.API_URL : undefined);
-const API_URL = (configuredApiUrl || 'http://localhost:5000').replace(/\/+$/, '');
+const API_URL = (configuredApiUrl || 'https://localhost:7281').replace(/\/+$/, '');
 const AUTH_SCHEME = ['B', 'e', 'a', 'r', 'e', 'r'].join('');
 
 export const api = axios.create({
